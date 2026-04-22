@@ -1,0 +1,58 @@
+const base = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
+
+export function apiUrl(path: string): string {
+  if (path.startsWith("/")) return `${base}${path}`;
+  return `${base}/${path}`;
+}
+
+export type TenantConfig = {
+  slug: string;
+  display_name: string;
+  timezone: string;
+  primary_color: string;
+  background_color: string;
+  text_color: string;
+  logo_url: string | null;
+  welcome_message: string;
+  business_hours_text: string;
+  contact_phone: string | null;
+  contact_email_public: string | null;
+};
+
+export async function fetchTenant(slug: string): Promise<TenantConfig> {
+  const r = await fetch(apiUrl(`/api/tenants/by-slug/${encodeURIComponent(slug)}`));
+  if (!r.ok) throw new Error("Business not found");
+  return r.json() as Promise<TenantConfig>;
+}
+
+export async function createSession(tenantSlug: string): Promise<{ id: string; tenant_slug: string }> {
+  const r = await fetch(apiUrl("/api/sessions"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tenant_slug: tenantSlug }),
+  });
+  if (!r.ok) throw new Error("Could not start chat");
+  return r.json() as Promise<{ id: string; tenant_slug: string }>;
+}
+
+export async function sendMessage(
+  sessionId: string,
+  content: string,
+): Promise<{ assistant_message: { role: string; content: string } }> {
+  const r = await fetch(apiUrl(`/api/sessions/${sessionId}/message`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (r.status === 410) throw new Error("session_expired");
+  if (!r.ok) throw new Error("Send failed");
+  return r.json() as Promise<{ assistant_message: { role: string; content: string } }>;
+}
+
+export async function endSession(sessionId: string, reason: "user" | "timeout" = "user"): Promise<void> {
+  await fetch(apiUrl(`/api/sessions/${sessionId}/end`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+}

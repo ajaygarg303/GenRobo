@@ -1,0 +1,171 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    sans-serif;
+  background: #e2e8f0;
+}
+
+.bc-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 1.5rem;
+  background: linear-gradient(160deg, var(--bc-bg, #f8fafc), #e2e8f0);
+  color: var(--bc-text, #0f172a);
+}
+
+.bc-card {
+  width: min(560px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bc-header {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 0.5rem;
+  align-items: center;
+}
+
+.bc-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.bc-logo-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: var(--bc-primary, #2563eb);
+  opacity: 0.35;
+}
+
+.bc-title {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.3;
+}
+
+.bc-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.bc-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0 1.25rem 1rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bc-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  margin-bottom: 0.15rem;
+}
+
+.bc-messages {
+  flex: 1;
+  min-height: 220px;
+  max-height: 48vh;
+  overflow: auto;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: #f8fafc;
+}
+
+.bc-msg {
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  max-width: 92%;
+  line-height: 1.45;
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+}
+
+.bc-msg-user {
+  align-self: flex-end;
+  background: var(--bc-primary, #2563eb);
+  color: #fff;
+}
+
+.bc-msg-assistant {
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  color: var(--bc-text, #0f172a);
+}
+
+.bc-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.bc-input {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font: inherit;
+}
+
+.bc-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--bc-primary, #2563eb) 55%, white);
+  border-color: transparent;
+}
+
+.bc-btn {
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bc-primary, #2563eb);
+  color: #fff;
+}
+
+.bc-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bc-btn-secondary {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.bc-muted {
+  color: #64748b;
+  margin: 0;
+}
