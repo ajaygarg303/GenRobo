@@ -1,0 +1,43 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: eu-west-1
+    # ECR repo name (same as CodeBuild/ImageName convention)
+    ImageName: simple-docker-service
+    # ECS container name in your task definition to update
+    ECS_CONTAINER_NAME: GenBotContainer
+    # Use ECR Public to avoid Docker Hub rate limits
+    NODE_BASE_IMAGE: public.ecr.aws/docker/library/node:20-alpine
+    PYTHON_BASE_IMAGE: public.ecr.aws/docker/library/python:3.12-slim
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - ECR_URI=$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_URI
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build --build-arg NODE_BASE_IMAGE=$NODE_BASE_IMAGE --build-arg PYTHON_BASE_IMAGE=$PYTHON_BASE_IMAGE -t $ImageName -f ./Dockerfile .
+      - docker tag $ImageName:latest $ECR_URI/$ImageName:latest
+      - docker tag $ImageName:latest $ECR_URI/$ImageName:$IMAGE_TAG
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $ECR_URI/$ImageName:latest
+      - docker push $ECR_URI/$ImageName:$IMAGE_TAG
+      - echo Writing image definitions file...
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$ECS_CONTAINER_NAME" "$ECR_URI/$ImageName:$IMAGE_TAG" > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json

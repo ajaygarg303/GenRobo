@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,10 +11,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./data/app.db"
     cors_origins: str = ""  # comma-separated; set CORS_ORIGINS when UI is on another origin
 
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    openai_model: str = Field(default="gpt-4o-mini", validation_alias="OPENAI_MODEL")
     # Optional: OpenAI-compatible API base (default is platform.openai.com)
-    openai_base_url: str = ""
+    openai_base_url: str = Field(default="", validation_alias="OPENAI_BASE_URL")
 
     session_idle_timeout_minutes: int = 30
     smtp_host: str = ""

@@ -1,11 +1,14 @@
-FROM node:20-alpine AS web
+ARG NODE_BASE_IMAGE=public.ecr.aws/docker/library/node:20-alpine
+ARG PYTHON_BASE_IMAGE=public.ecr.aws/docker/library/python:3.12-slim
+
+FROM ${NODE_BASE_IMAGE} AS web
 WORKDIR /web
 COPY frontend/package.json ./
 RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
-FROM python:3.12-slim
+FROM ${PYTHON_BASE_IMAGE}
 WORKDIR /app
 
 COPY backend/requirements.txt .
