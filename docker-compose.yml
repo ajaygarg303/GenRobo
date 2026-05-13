@@ -1,8 +1,15 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   app:
     build: .
     ports:
       - "8000:8000"
+    depends_on:
+      - redis
     environment:
       DATABASE_URL: sqlite+aiosqlite:///./data/app.db
       SESSION_IDLE_TIMEOUT_MINUTES: "30"
@@ -15,6 +22,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      REDIS_URL: redis://redis:6379/0
+      KNOWLEDGE_S3_BUCKET: ${KNOWLEDGE_S3_BUCKET:-}
+      KB_CACHE_TTL_SECONDS: ${KB_CACHE_TTL_SECONDS:-1800}
     volumes:
       - sqlite_data:/app/data
 

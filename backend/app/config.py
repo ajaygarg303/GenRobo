@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
 
+    # Shared S3 bucket for tenant knowledge-base objects; object key per tenant in DB.
+    knowledge_s3_bucket: str = Field(default="", validation_alias="KNOWLEDGE_S3_BUCKET")
+    # Optional: redis://host:6379/0 — when set, KB text is cached after successful S3 read.
+    redis_url: str = Field(default="", validation_alias="REDIS_URL")
+    kb_cache_ttl_seconds: int = Field(default=1800, validation_alias="KB_CACHE_TTL_SECONDS")
+
 
 @lru_cache
 def get_settings() -> Settings:

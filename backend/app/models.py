@@ -26,6 +26,8 @@ class Tenant(Base):
     welcome_message: Mapped[str] = mapped_column(String(500), default="How can we help you today?")
 
     faq_text: Mapped[str] = mapped_column(Text, default="")
+    # Object key inside KNOWLEDGE_S3_BUCKET (e.g. tenants/acme/knowledge.md). Empty = S3 KB disabled.
+    knowledge_s3_key: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
     business_hours_text: Mapped[str] = mapped_column(String(2000), default="")
     contact_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     contact_email_public: Mapped[str | None] = mapped_column(String(200), nullable=True)

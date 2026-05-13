@@ -9,9 +9,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.db import Base, engine
+from app.db import Base, engine, ensure_tenant_knowledge_s3_key_column
 from app.routers import chat, health, tenants
 from app.seed import seed
+from app.services.knowledge import close_knowledge_redis, init_knowledge_redis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,8 +24,11 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 async def lifespan(_: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await ensure_tenant_knowledge_s3_key_column()
+    await init_knowledge_redis()
     await seed()
     yield
+    await close_knowledge_redis()
 
 
 def create_app() -> FastAPI:
