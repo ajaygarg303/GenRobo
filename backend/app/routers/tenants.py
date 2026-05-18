@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_session
 from app.models import Tenant
 from app.schemas import TenantPublicConfig
+from app.services.entitlements import assert_tenant_chat_available
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
@@ -15,6 +16,7 @@ async def get_tenant_public(slug: str, session: AsyncSession = Depends(get_sessi
     t = r.scalar_one_or_none()
     if not t:
         raise HTTPException(status_code=404, detail="Business not found")
+    assert_tenant_chat_available(t)
     return TenantPublicConfig(
         slug=t.slug,
         display_name=t.display_name,

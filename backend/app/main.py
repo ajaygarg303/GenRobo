@@ -9,8 +9,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.db import Base, engine, ensure_tenant_knowledge_s3_key_column
-from app.routers import chat, health, tenants
+from app.database_info import database_backend, database_target_for_logs, normalize_database_url
+from app.db import Base, engine
+from app.db_schema import ensure_phase1_schema
+from app.routers import chat, health, public_config, tenants
 from app.seed import seed
 from app.services.knowledge import close_knowledge_redis, init_knowledge_redis
 
@@ -22,9 +24,21 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    settings = get_settings()
+    url = normalize_database_url(settings.database_url)
+    logger.info(
+        "Database backend=%s target=%s",
+        database_backend(url),
+        database_target_for_logs(url),
+    )
+    if database_backend(url) == "sqlite":
+        logger.warning(
+            "Using SQLite (DATABASE_URL not set to Postgres). "
+            "On ECS, set DATABASE_URL to your RDS connection string."
+        )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await ensure_tenant_knowledge_s3_key_column()
+    await ensure_phase1_schema()
     await init_knowledge_redis()
     await seed()
     yield
@@ -54,6 +68,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(tenants.router, prefix="/api")
+    app.include_router(public_config.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
 
     if STATIC_DIR.is_dir() and (STATIC_DIR / "index.html").is_file():

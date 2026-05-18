@@ -42,12 +42,20 @@ class ChatTurnResponse(BaseModel):
 
 
 class EndSessionBody(BaseModel):
-    reason: Literal["user", "timeout"] = "user"
+    reason: Literal["user", "timeout", "idle"] = "user"
+
+
+class ChatSettingsOut(BaseModel):
+    idle_reminder_seconds: int
+    idle_end_after_reminder_seconds: int
+    idle_reminder_message: str
 
 
 class HealthOut(BaseModel):
     status: str
     database: str
+    database_backend: str = ""
+    database_target: str = ""
 
 
 class TranscriptLine(BaseModel):

@@ -19,8 +19,27 @@ export type TenantConfig = {
   contact_email_public: string | null;
 };
 
+export type ChatSettings = {
+  idle_reminder_seconds: number;
+  idle_end_after_reminder_seconds: number;
+  idle_reminder_message: string;
+};
+
+export async function fetchChatSettings(): Promise<ChatSettings> {
+  const r = await fetch(apiUrl("/api/public/chat-settings"));
+  if (!r.ok) {
+    return {
+      idle_reminder_seconds: 30,
+      idle_end_after_reminder_seconds: 30,
+      idle_reminder_message: "Are you still there? Send a message to keep this chat open.",
+    };
+  }
+  return r.json() as Promise<ChatSettings>;
+}
+
 export async function fetchTenant(slug: string): Promise<TenantConfig> {
   const r = await fetch(apiUrl(`/api/tenants/by-slug/${encodeURIComponent(slug)}`));
+  if (r.status === 403) throw new Error("business_unavailable");
   if (!r.ok) throw new Error("Business not found");
   return r.json() as Promise<TenantConfig>;
 }
@@ -31,6 +50,7 @@ export async function createSession(tenantSlug: string): Promise<{ id: string; t
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tenant_slug: tenantSlug }),
   });
+  if (r.status === 429) throw new Error("session_quota");
   if (!r.ok) throw new Error("Could not start chat");
   return r.json() as Promise<{ id: string; tenant_slug: string }>;
 }
@@ -49,7 +69,10 @@ export async function sendMessage(
   return r.json() as Promise<{ assistant_message: { role: string; content: string } }>;
 }
 
-export async function endSession(sessionId: string, reason: "user" | "timeout" = "user"): Promise<void> {
+export async function endSession(
+  sessionId: string,
+  reason: "user" | "timeout" | "idle" = "user",
+): Promise<void> {
   await fetch(apiUrl(`/api/sessions/${sessionId}/end`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
