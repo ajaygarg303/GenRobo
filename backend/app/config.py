@@ -8,7 +8,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "Business Chatbot"
-    database_url: str = "sqlite+aiosqlite:///./data/app.db"
+    # Set DATABASE_URL on ECS (e.g. postgresql+asyncpg://user:pass@host:5432/postgres?ssl=require).
+    # If unset, defaults to SQLite under ./data/ (local dev only).
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./data/app.db",
+        validation_alias="DATABASE_URL",
+    )
     cors_origins: str = ""  # comma-separated; set CORS_ORIGINS when UI is on another origin
 
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
@@ -16,7 +21,16 @@ class Settings(BaseSettings):
     # Optional: OpenAI-compatible API base (default is platform.openai.com)
     openai_base_url: str = Field(default="", validation_alias="OPENAI_BASE_URL")
 
-    session_idle_timeout_minutes: int = 30
+    session_idle_timeout_minutes: int = Field(default=30, validation_alias="SESSION_IDLE_TIMEOUT_MINUTES")
+    chat_idle_reminder_seconds: int = Field(default=30, validation_alias="CHAT_IDLE_REMINDER_SECONDS")
+    chat_idle_end_after_reminder_seconds: int = Field(
+        default=30,
+        validation_alias="CHAT_IDLE_END_AFTER_REMINDER_SECONDS",
+    )
+    chat_idle_reminder_message: str = Field(
+        default="Are you still there? Send a message to keep this chat open.",
+        validation_alias="CHAT_IDLE_REMINDER_MESSAGE",
+    )
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""

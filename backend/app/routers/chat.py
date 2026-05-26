@@ -10,8 +10,13 @@ from app.config import get_settings
 from app.db import get_session
 from app.models import ChatMessage, ChatSession, Tenant
 from app.schemas import ChatTurnResponse, EndSessionBody, MessageIn, MessageOut, SessionCreate, SessionOut
+from app.services.entitlements import (
+    assert_session_quota,
+    assert_tenant_chat_available,
+    increment_session_usage,
+)
 from app.services.llm import generate_reply
-from app.services.transcript import send_transcript_if_configured
+from app.services.session_close import close_chat_session
 
 router = APIRouter(prefix="/sessions", tags=["chat"])
 
@@ -51,8 +56,13 @@ async def create_session(
     if not tenant:
         raise HTTPException(status_code=404, detail="Business not found")
 
+    assert_tenant_chat_available(tenant)
+    await assert_session_quota(session, tenant)
+
     chat = ChatSession(tenant_id=tenant.id)
     session.add(chat)
+    await session.flush()
+    await increment_session_usage(session, tenant)
     await session.commit()
     await session.refresh(chat)
     return SessionOut(id=chat.id, tenant_slug=tenant.slug)
@@ -66,6 +76,7 @@ async def post_message(
 ) -> ChatTurnResponse:
     settings = get_settings()
     chat, tenant = await _get_active_session(session, session_id)
+    assert_tenant_chat_available(tenant)
 
     r = await session.execute(
         select(ChatMessage)
@@ -76,10 +87,7 @@ async def post_message(
     last = r.scalar_one_or_none()
     last_at = last.created_at if last else None
     if _check_idle(last_at, settings.session_idle_timeout_minutes):
-        chat.ended_at = datetime.now(timezone.utc)
-        chat.end_reason = "timeout"
-        await session.commit()
-        await send_transcript_if_configured(session, chat, tenant)
+        await close_chat_session(session, chat, tenant, "timeout")
         raise HTTPException(status_code=410, detail="Session timed out — start a new chat")
 
     user_msg = ChatMessage(session_id=chat.id, role="user", content=body.content)
@@ -109,7 +117,4 @@ async def end_session(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     chat, tenant = await _get_active_session(session, session_id)
-    chat.ended_at = datetime.now(timezone.utc)
-    chat.end_reason = body.reason
-    await session.commit()
-    await send_transcript_if_configured(session, chat, tenant)
+    await close_chat_session(session, chat, tenant, body.reason)

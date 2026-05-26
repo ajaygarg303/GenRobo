@@ -1,10 +1,55 @@
 import asyncio
+import json
 import uuid
 
 from sqlalchemy import select
 
 from app.db import SessionLocal, engine
-from app.models import Base, Tenant
+from app.models import Base, Plan, Tenant
+
+PLANS = [
+    {
+        "code": "basic",
+        "display_name": "Basic",
+        "max_sessions_per_month": 200,
+        "entitlements": {"images": False, "appointments": False, "orders": False, "kb_suggestions": False},
+    },
+    {
+        "code": "advanced",
+        "display_name": "Advanced",
+        "max_sessions_per_month": 2000,
+        "entitlements": {"images": True, "appointments": False, "orders": False, "kb_suggestions": True},
+    },
+    {
+        "code": "premium",
+        "display_name": "Premium",
+        "max_sessions_per_month": 20000,
+        "entitlements": {"images": True, "appointments": True, "orders": True, "kb_suggestions": True},
+    },
+]
+
+
+async def _ensure_plans(session) -> dict[str, Plan]:
+    by_code: dict[str, Plan] = {}
+    for spec in PLANS:
+        r = await session.execute(select(Plan).where(Plan.code == spec["code"]))
+        plan = r.scalar_one_or_none()
+        if not plan:
+            plan = Plan(
+                id=uuid.uuid4(),
+                code=spec["code"],
+                display_name=spec["display_name"],
+                max_sessions_per_month=spec["max_sessions_per_month"],
+                entitlements_json=json.dumps(spec["entitlements"]),
+            )
+            session.add(plan)
+        else:
+            plan.display_name = spec["display_name"]
+            plan.max_sessions_per_month = spec["max_sessions_per_month"]
+            plan.entitlements_json = json.dumps(spec["entitlements"])
+        by_code[spec["code"]] = plan
+    await session.flush()
+    return by_code
 
 
 async def seed() -> None:
@@ -12,16 +57,18 @@ async def seed() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
     async with SessionLocal() as session:
-        r = await session.execute(select(Tenant).where(Tenant.slug == "demo"))
-        if r.scalar_one_or_none():
-            return
+        plans = await _ensure_plans(session)
 
-        session.add(
-            Tenant(
+        r = await session.execute(select(Tenant).where(Tenant.slug == "demo"))
+        demo = r.scalar_one_or_none()
+        if not demo:
+            demo = Tenant(
                 id=uuid.uuid4(),
                 slug="demo",
                 display_name="Demo Plumbing Co.",
                 timezone="Asia/Kolkata",
+                status="active",
+                plan_id=plans["basic"].id,
                 primary_color="#0369a1",
                 background_color="#f0f9ff",
                 text_color="#0c4a6e",
@@ -37,9 +84,15 @@ async def seed() -> None:
                 contact_email_public="hello@demoplumbing.example",
                 transcript_email="owner@example.com",
             )
-        )
+            session.add(demo)
+            print("Seeded tenant slug=demo")
+        else:
+            if not demo.plan_id:
+                demo.plan_id = plans["basic"].id
+            if not getattr(demo, "status", None) or demo.status == "":
+                demo.status = "active"
+
         await session.commit()
-        print("Seeded tenant slug=demo")
 
 
 def main() -> None:
