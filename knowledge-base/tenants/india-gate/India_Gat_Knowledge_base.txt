@@ -1,0 +1,57 @@
+# India Gate — Knowledge base for chat assistant
+
+Source: public website https://indiagate.ie/ (summarized for customer Q&A).  
+Last curated: manual draft — confirm prices, allergens, and offers with the restaurant before production use.
+
+## Business overview
+
+India Gate is a modern Indian takeaway in Tallaght, Dublin, established in 2010. The restaurant describes itself as a high-end takeaway offering authentic Indian cuisine: curries, biryanis, tandoor dishes, and traditional recipes with a contemporary touch. Chefs are trained in traditional Indian cooking.
+
+## Location
+
+1 Colberts Fort, Belgard Road, Tallaght, Dublin 24, Ireland.
+
+Car parking is available on site.
+
+## Opening hours
+
+Monday to Sunday: open 4:00 pm, close 10:30 pm.
+
+## Contact
+
+- General enquiries email: ranbir.indiagate@gmail.com
+- Phone: 01 462 2704, 01 462 2705
+- Feedback or complaints: 086 300 1091
+
+## Ordering
+
+Customers can order online via the website (Order Online / menu links). Do not state delivery fees, minimum order amounts, delivery areas, or payment methods unless the business has confirmed them — say you will ask the team to confirm if asked.
+
+## Menu — starters (descriptions from website)
+
+- **Aloo Tikki** — Cumin, ginger and chilli flavoured crunchy potato patties with a mint dip.
+- **Vegetable Samosa** — Home-made crunchy short-dough pyramid turnovers with potato and mustard seed filling (described as 9 pieces on the site).
+- **Onion Bhaji** — Finely sliced onion in spicy gram flour batter with coriander and fennel, cooked in ghee.
+- **Paneer Pakoras** — Homemade cheese in gram flour batter with spices, deep fried.
+- **Tandoori Mixed Grill** — Assortment from the clay oven: seekh kebab, chicken tikka and tandoori chicken; suitable for sharing.
+
+## Menu — mains (descriptions from website)
+
+- **Seekh Kebab** — Spring lamb mince with onion, ginger, garlic, coriander, mace and cardamom; skewered and barbecued in a clay oven; served with mint chutney.
+- **Chicken Tikka Shashlik** — Chicken tikka with bell peppers, onions and scallions in a tangy sweet tomato, soy and garlic sauce.
+- **Tikka Masala** — Mild and creamy; tomato and buttercream style sauce with cashew nuts.
+- **Rogan Josh** — Rich brown sauce with caramelised onion, ginger, garlic, tomato, cinnamon and spices.
+- **Jalfrezi** — Mixed peppers, tomatoes, onions, chillies and aromatic spices.
+
+The website also mentions classics such as butter chicken in its philosophy text. For the full menu and current prices, direct customers to order online or call the restaurant.
+
+## Customer feedback (on-site quote)
+
+A customer review on the website particularly recommends the **lamb jalfrezi** and praises authenticity compared to other Indian takeaways in the Clondalkin–Tallaght area. Do not over-promise; this is one customer’s opinion.
+
+## Assistant rules
+
+- Answer only using the information above and what the business has confirmed.
+- Do not invent prices, allergen information, spice levels, halal/vegan guarantees, or promotions.
+- If unsure, offer to pass the question to the team using the phone or email above.
+- Do not reference locations or content that are not part of India Gate in Dublin (ignore unrelated template text that may appear on third-party site copies).
