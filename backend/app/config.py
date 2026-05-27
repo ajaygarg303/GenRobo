@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
+    smtp_timeout_seconds: int = Field(default=15, validation_alias="SMTP_TIMEOUT_SECONDS")
 
     # Shared S3 bucket for tenant knowledge-base objects; object key per tenant in DB.
     knowledge_s3_bucket: str = Field(default="", validation_alias="KNOWLEDGE_S3_BUCKET")
