@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ChatMessage, ChatSession, Tenant
 from app.services.session_summary import generate_session_summary
-from app.services.transcript import send_transcript_if_configured
+from app.services.transcript import schedule_transcript_email
 
 
 async def close_chat_session(
@@ -37,4 +37,4 @@ async def close_chat_session(
     await session.commit()
     await session.refresh(chat)
 
-    await send_transcript_if_configured(session, chat, tenant, summary=summary, lead=lead)
+    schedule_transcript_email(tenant, chat, messages, summary=summary, lead=lead)

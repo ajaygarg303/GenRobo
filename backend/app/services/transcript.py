@@ -1,12 +1,15 @@
+"""Chat transcript logging and optional SMTP delivery."""
+
+from __future__ import annotations
+
+import asyncio
 import logging
 import smtplib
 from email.message import EmailMessage
 from typing import Any
+from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.models import ChatMessage, ChatSession, Tenant
 
 logger = logging.getLogger(__name__)
@@ -29,53 +32,124 @@ def _format_lead_block(lead: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-async def send_transcript_if_configured(
-    session: AsyncSession,
-    chat: ChatSession,
-    tenant: Tenant,
+def build_transcript_body(
     *,
-    summary: str | None = None,
-    lead: dict[str, Any] | None = None,
-) -> None:
-    result = await session.execute(
-        select(ChatMessage).where(ChatMessage.session_id == chat.id).order_by(ChatMessage.created_at)
-    )
-    rows = result.scalars().all()
-    lines = []
-    for m in rows:
-        if m.role in ("user", "assistant"):
-            lines.append(f"{m.role.upper()}: {m.content}")
-
-    summary_text = summary or chat.summary_text or "(No summary generated.)"
-    lead_block = _format_lead_block(lead or {})
-
-    body = (
-        f"Chat transcript for {tenant.display_name}\n"
-        f"Session ID: {chat.id}\n"
-        f"Ended: {chat.end_reason}\n\n"
+    tenant_display_name: str,
+    session_id: UUID,
+    end_reason: str | None,
+    messages: list[ChatMessage],
+    summary: str,
+    lead: dict[str, Any],
+) -> str:
+    lines = [
+        f"{m.role.upper()}: {m.content}"
+        for m in messages
+        if m.role in ("user", "assistant")
+    ]
+    lead_block = _format_lead_block(lead)
+    return (
+        f"Chat transcript for {tenant_display_name}\n"
+        f"Session ID: {session_id}\n"
+        f"Ended: {end_reason}\n\n"
         f"{lead_block}\n\n"
-        f"--- Summary ---\n{summary_text}\n\n"
+        f"--- Summary ---\n{summary}\n\n"
         f"--- Full transcript ---\n"
         + "\n\n".join(lines)
     )
 
-    logger.info("Transcript (session %s):\n%s", chat.id, body)
 
-    s = get_settings()
-    if not s.smtp_host or not tenant.transcript_email:
-        return
-
+def _smtp_send_sync(
+    settings: Settings,
+    *,
+    to_email: str,
+    display_name: str,
+    body: str,
+) -> None:
+    """Blocking SMTP send — always run via asyncio.to_thread from async code."""
+    timeout = settings.smtp_timeout_seconds
     msg = EmailMessage()
-    msg["Subject"] = f"[{tenant.display_name}] Chat lead & transcript"
-    msg["From"] = s.smtp_from or s.smtp_user or "noreply@localhost"
-    msg["To"] = tenant.transcript_email
+    msg["Subject"] = f"[{display_name}] Chat lead & transcript"
+    msg["From"] = settings.smtp_from or settings.smtp_user or "noreply@localhost"
+    msg["To"] = to_email
     msg.set_content(body)
 
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=timeout) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+        if settings.smtp_user and settings.smtp_password:
+            smtp.login(settings.smtp_user, settings.smtp_password)
+        smtp.send_message(msg)
+
+
+async def _background_smtp_send(
+    settings: Settings,
+    *,
+    to_email: str,
+    display_name: str,
+    body: str,
+    session_id: UUID,
+) -> None:
     try:
-        with smtplib.SMTP(s.smtp_host, s.smtp_port) as smtp:
-            smtp.starttls()
-            if s.smtp_user and s.smtp_password:
-                smtp.login(s.smtp_user, s.smtp_password)
-            smtp.send_message(msg)
-    except OSError as e:
-        logger.warning("SMTP transcript send failed: %s", e)
+        await asyncio.to_thread(
+            _smtp_send_sync,
+            settings,
+            to_email=to_email,
+            display_name=display_name,
+            body=body,
+        )
+        logger.info("Transcript email sent for session %s to %s", session_id, to_email)
+    except Exception as e:
+        logger.warning(
+            "SMTP transcript send failed for session %s (host=%s port=%s): %s",
+            session_id,
+            settings.smtp_host,
+            settings.smtp_port,
+            e,
+        )
+
+
+def schedule_transcript_email(
+    tenant: Tenant,
+    chat: ChatSession,
+    messages: list[ChatMessage],
+    *,
+    summary: str,
+    lead: dict[str, Any],
+) -> None:
+    """
+    Log transcript and queue SMTP in the background so /end returns immediately.
+    Avoids blocking the event loop (ECS health checks) on slow or unreachable SMTP.
+    """
+    summary_text = summary or chat.summary_text or "(No summary generated.)"
+    body = build_transcript_body(
+        tenant_display_name=tenant.display_name,
+        session_id=chat.id,
+        end_reason=chat.end_reason,
+        messages=messages,
+        summary=summary_text,
+        lead=lead or {},
+    )
+    logger.info("Transcript ready for session %s (%d messages)", chat.id, len(messages))
+
+    settings = get_settings()
+    to_email = (tenant.transcript_email or "").strip()
+    if not settings.smtp_host.strip():
+        logger.info(
+            "Transcript email skipped for session %s (SMTP_HOST not set; see CloudWatch for transcript)",
+            chat.id,
+        )
+        return
+    if not to_email:
+        logger.info("Transcript email skipped for session %s (tenant transcript_email empty)", chat.id)
+        return
+
+    asyncio.create_task(
+        _background_smtp_send(
+            settings,
+            to_email=to_email,
+            display_name=tenant.display_name,
+            body=body,
+            session_id=chat.id,
+        )
+    )
