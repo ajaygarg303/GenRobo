@@ -2,29 +2,61 @@ from openai import AsyncOpenAI
 
 from app.config import get_settings
 from app.models import ChatMessage, Tenant
-from app.services.knowledge import load_tenant_knowledge
+from app.services.fast_reply import try_fast_reply
+from app.services.intent import ChatIntent, classify_intent
+from app.services.tenant_customization import enrich_for_tenant
+from app.services.tenant_knowledge import load_static_for_intent
+
+_openai_client: AsyncOpenAI | None = None
 
 
 def _client() -> AsyncOpenAI | None:
+    global _openai_client
     s = get_settings()
     if not s.openai_api_key:
         return None
-    kwargs: dict[str, str] = {"api_key": s.openai_api_key}
-    if s.openai_base_url.strip():
-        kwargs["base_url"] = s.openai_base_url.rstrip("/")
-    return AsyncOpenAI(**kwargs)
+    if _openai_client is None:
+        kwargs: dict[str, str] = {"api_key": s.openai_api_key}
+        if s.openai_base_url.strip():
+            kwargs["base_url"] = s.openai_base_url.rstrip("/")
+        _openai_client = AsyncOpenAI(**kwargs)
+    return _openai_client
 
 
-async def _build_system_prompt(tenant: Tenant) -> str:
-    knowledge = await load_tenant_knowledge(tenant)
+def _intent_hint(intent: ChatIntent) -> str:
+    hints = {
+        ChatIntent.STOCK_PRICE: "The customer is asking about product availability or price. Use structured lookup data when provided.",
+        ChatIntent.MENU_ORDER: "The customer is asking about menu items or order totals. Use the static menu knowledge. Show itemised prices and a total.",
+        ChatIntent.HOURS_LOCATION: "The customer is asking about opening hours or location.",
+        ChatIntent.CONTACT: "The customer wants contact details or to speak with the business.",
+        ChatIntent.GENERAL: "Answer helpfully using the static business knowledge. If unsure, say you will pass the question to the team.",
+    }
+    return hints.get(intent, hints[ChatIntent.GENERAL])
+
+
+async def _build_system_prompt(
+    tenant: Tenant,
+    knowledge: str,
+    intent: ChatIntent,
+    enrichment: str | None,
+    business_type: str,
+) -> str:
     parts = [
         f"You are the website chat assistant for {tenant.display_name}.",
         "Answer using the business information below. If something is not covered, say you will pass the question to the team — do not invent prices, policies, or medical/legal advice.",
+        f"Business type: {business_type}. Detected intent: {intent.value}. {_intent_hint(intent)}",
         f"Business hours and notes: {tenant.business_hours_text or 'Not specified.'}",
         f"Public contact: phone={tenant.contact_phone or 'n/a'}, email={tenant.contact_email_public or 'n/a'}.",
-        "--- Business knowledge (FAQs, services, rates) ---",
+        "--- Static knowledge (FAQ / menu — policies, services, how to order) ---",
         knowledge,
     ]
+    if enrichment:
+        parts.extend(
+            [
+                "--- Dynamic data for this message (stock, slots — authoritative when present) ---",
+                enrichment,
+            ]
+        )
     return "\n\n".join(parts)
 
 
@@ -33,8 +65,23 @@ async def generate_reply(
     history: list[ChatMessage],
     user_text: str,
 ) -> str:
+    intent_result = classify_intent(user_text, tenant)
+
+    fast = try_fast_reply(tenant, user_text, intent_result)
+    if fast is not None:
+        return fast
+
+    intent = intent_result.intent
+    knowledge = await load_static_for_intent(tenant, intent)
+    intent, enrichment = await enrich_for_tenant(
+        tenant, user_text, intent, knowledge, intent_result=intent_result
+    )
+
+    system = await _build_system_prompt(
+        tenant, knowledge, intent, enrichment, intent_result.business_type
+    )
+
     client = _client()
-    system = await _build_system_prompt(tenant)
     messages: list[dict[str, str]] = [{"role": "system", "content": system}]
     for m in history:
         if m.role not in ("user", "assistant"):
@@ -43,18 +90,22 @@ async def generate_reply(
     messages.append({"role": "user", "content": user_text.strip()})
 
     if client is None:
+        mock_extra = ""
+        if enrichment:
+            mock_extra = f"\n\n[Dynamic lookup]\n{enrichment[:400]}"
         return (
             "[Mock mode] OpenAI is not configured. "
             "Set OPENAI_API_KEY (and optionally OPENAI_MODEL, OPENAI_BASE_URL). "
-            f"You asked: {user_text[:200]}"
+            f"Intent={intent.value}. You asked: {user_text[:200]}{mock_extra}"
         )
 
     s = get_settings()
+    max_tokens = 400 if intent in (ChatIntent.HOURS_LOCATION, ChatIntent.CONTACT) else 800
     resp = await client.chat.completions.create(
         model=s.openai_model,
         messages=messages,
         temperature=0.4,
-        max_tokens=800,
+        max_tokens=max_tokens,
     )
     choice = resp.choices[0].message.content
     return (choice or "").strip() or "Sorry, I could not generate a reply."

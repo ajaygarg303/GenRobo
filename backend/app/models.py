@@ -44,8 +44,18 @@ class Tenant(Base):
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     welcome_message: Mapped[str] = mapped_column(String(500), default="How can we help you today?")
 
+    # retail_electronics | restaurant | general | services — drives intent templates
+    business_type: Mapped[str] = mapped_column(String(32), default="general", index=True)
+    # Optional JSON: {"keywords": {"menu_order": ["catering"]}}
+    intent_config_json: Mapped[str] = mapped_column(Text, default="{}")
+
     faq_text: Mapped[str] = mapped_column(Text, default="")
+    # Static FAQ / menu (S3)
     knowledge_s3_key: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
+    # Dynamic stock, appointment slots, etc. (S3) — loaded only for matching intents
+    dynamic_data_s3_key: Mapped[str | None] = mapped_column(String(1024), nullable=True, default=None)
+    # inventory_csv | appointment_slots | none
+    dynamic_data_kind: Mapped[str] = mapped_column(String(32), default="none")
     business_hours_text: Mapped[str] = mapped_column(String(2000), default="")
     contact_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     contact_email_public: Mapped[str | None] = mapped_column(String(200), nullable=True)
