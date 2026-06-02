@@ -31,6 +31,10 @@ async def ensure_phase1_schema() -> None:
             await _pg_add_column(conn, "tenants", "subscription_ends_at", "TIMESTAMPTZ")
             await _pg_add_column(conn, "chat_sessions", "summary_text", "TEXT")
             await _pg_add_column(conn, "chat_sessions", "lead_json", "TEXT")
+            await _pg_add_column(conn, "tenants", "business_type", "VARCHAR(32) DEFAULT 'general'")
+            await _pg_add_column(conn, "tenants", "intent_config_json", "TEXT DEFAULT '{}'")
+            await _pg_add_column(conn, "tenants", "dynamic_data_s3_key", "VARCHAR(1024)")
+            await _pg_add_column(conn, "tenants", "dynamic_data_kind", "VARCHAR(32) DEFAULT 'none'")
         elif backend == "sqlite":
             await _sqlite_add_column(conn, "tenants", "knowledge_s3_key", "VARCHAR(1024)")
             await _sqlite_add_column(conn, "tenants", "status", "VARCHAR(32) DEFAULT 'active'")
@@ -38,3 +42,7 @@ async def ensure_phase1_schema() -> None:
             await _sqlite_add_column(conn, "tenants", "subscription_ends_at", "DATETIME")
             await _sqlite_add_column(conn, "chat_sessions", "summary_text", "TEXT")
             await _sqlite_add_column(conn, "chat_sessions", "lead_json", "TEXT")
+            await _sqlite_add_column(conn, "tenants", "business_type", "VARCHAR(32) DEFAULT 'general'")
+            await _sqlite_add_column(conn, "tenants", "intent_config_json", "TEXT DEFAULT '{}'")
+            await _sqlite_add_column(conn, "tenants", "dynamic_data_s3_key", "VARCHAR(1024)")
+            await _sqlite_add_column(conn, "tenants", "dynamic_data_kind", "VARCHAR(32) DEFAULT 'none'")

@@ -201,7 +201,6 @@ export default function ChatPage() {
           )}
           <div>
             <h1 className="bc-title">{cfg.display_name}</h1>
-            <p className="bc-sub">{cfg.welcome_message}</p>
           </div>
         </header>
 
@@ -222,6 +221,9 @@ export default function ChatPage() {
         </section>
 
         <div className="bc-messages" ref={listRef}>
+          {cfg.welcome_message.trim() && (
+            <div className="bc-msg bc-msg-assistant">{cfg.welcome_message}</div>
+          )}
           {messages.map((m, i) => (
             <div key={i} className={`bc-msg bc-msg-${m.role}`}>
               {m.content}
