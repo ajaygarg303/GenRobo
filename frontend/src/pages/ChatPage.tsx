@@ -9,11 +9,13 @@ import {
   type ChatSettings,
   type TenantConfig,
 } from "@/api";
+import { resolveTenantSlug } from "@/tenantSlug";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 export default function ChatPage() {
-  const { slug = "demo" } = useParams();
+  const { slug: pathSlug } = useParams();
+  const slug = resolveTenantSlug(pathSlug);
   const [cfg, setCfg] = useState<TenantConfig | null>(null);
   const [chatSettings, setChatSettings] = useState<ChatSettings | null>(null);
   const [err, setErr] = useState<string | null>(null);

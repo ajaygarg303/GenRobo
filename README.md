@@ -94,6 +94,41 @@ Set OpenAI in a `.env` file next to `docker-compose.yml` (see `.env.example`) or
 
 Without `OPENAI_API_KEY`, the bot returns a short **mock** reply so you can test without spend.
 
+## Multi-tenant DNS (`{tenant}.myrobochat.com`)
+
+Each business **slug** in the database becomes the **left part** of the hostname:
+
+| Tenant slug (`tenants.slug`) | Chat URL |
+|-----------------------------|----------|
+| `demo` | `https://demo.myrobochat.com` |
+| `siyu` | `https://siyu.myrobochat.com` |
+| `india-gate` | `https://india-gate.myrobochat.com` |
+
+Path URLs still work: `https://myrobochat.com/b/siyu` (same app).
+
+### DNS (registrar or Route 53)
+
+1. Point the **apex** `myrobochat.com` and a **wildcard** `*.myrobochat.com` to your load balancer (ALB alias / CNAME). One wildcard record covers every tenant; you do not add a record per tenant.
+2. Example (Route 53): **A/ALIAS** `myrobochat.com` → ALB; **A/ALIAS** `*.myrobochat.com` → same ALB.
+
+### TLS (AWS ACM on the ALB)
+
+Request a certificate for **`myrobochat.com`** and **`*.myrobochat.com`** (DNS validation). Attach it to the HTTPS listener on port 443.
+
+### App build (ECS / Docker)
+
+Set at **image build** time so the SPA knows the base domain:
+
+```text
+VITE_TENANT_BASE_DOMAIN=myrobochat.com
+```
+
+The repo `Dockerfile` should pass this as a build-arg if you deploy to ECS. Legacy `/b/{slug}` links work without it; subdomain routing requires it.
+
+### Local subdomain test
+
+With `VITE_TENANT_BASE_DOMAIN=myrobochat.com` in `frontend/.env`, map a host to localhost (e.g. `127.0.0.1 demo.myrobochat.com` in `hosts` file) or use `demo.localhost` with the same env if your browser resolves `*.localhost` to 127.0.0.1.
+
 ## Deploy on AWS with ECS (outline)
 
 Typical path for this **single container**:

@@ -2,10 +2,12 @@ ARG NODE_BASE_IMAGE=public.ecr.aws/docker/library/node:20-alpine
 ARG PYTHON_BASE_IMAGE=public.ecr.aws/docker/library/python:3.12-slim
 
 FROM ${NODE_BASE_IMAGE} AS web
+ARG VITE_TENANT_BASE_DOMAIN=
 WORKDIR /web
 COPY frontend/package.json ./
 RUN npm install
 COPY frontend/ ./
+ENV VITE_TENANT_BASE_DOMAIN=${VITE_TENANT_BASE_DOMAIN}
 RUN npm run build
 
 FROM ${PYTHON_BASE_IMAGE}
