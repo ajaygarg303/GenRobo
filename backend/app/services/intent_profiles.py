@@ -136,6 +136,7 @@ TEMPLATES: dict[str, IntentProfile] = {
 SLUG_DEFAULT_BUSINESS_TYPE: dict[str, str] = {
     "siyu": "retail_electronics",
     "india-gate": "restaurant",
+    "ludhiana-orthodontics": "services",
     "demo": "general",
 }
 
