@@ -10,6 +10,7 @@ env:
     # Use ECR Public to avoid Docker Hub rate limits
     NODE_BASE_IMAGE: public.ecr.aws/docker/library/node:20-alpine
     PYTHON_BASE_IMAGE: public.ecr.aws/docker/library/python:3.12-slim
+    VITE_TENANT_BASE_DOMAIN: myrobochat.com
 
 phases:
   pre_build:
@@ -25,7 +26,7 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build --build-arg NODE_BASE_IMAGE=$NODE_BASE_IMAGE --build-arg PYTHON_BASE_IMAGE=$PYTHON_BASE_IMAGE -t $ImageName -f ./Dockerfile .
+      - docker build --build-arg NODE_BASE_IMAGE=$NODE_BASE_IMAGE --build-arg PYTHON_BASE_IMAGE=$PYTHON_BASE_IMAGE --build-arg VITE_TENANT_BASE_DOMAIN=$VITE_TENANT_BASE_DOMAIN -t $ImageName -f ./Dockerfile .
       - docker tag $ImageName:latest $ECR_URI/$ImageName:latest
       - docker tag $ImageName:latest $ECR_URI/$ImageName:$IMAGE_TAG
 
