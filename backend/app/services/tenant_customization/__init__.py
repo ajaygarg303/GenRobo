@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.models import Tenant
-from app.services.intent import ChatIntent, IntentResult, classify_intent
+from app.services.intent import ChatIntent, IntentResult
 from app.services.intent_profiles import get_profile
 from app.services.structured.dynamic_data import enrich_from_dynamic_data
 from app.services.tenant_customization.base import TenantCustomizer
@@ -26,7 +26,9 @@ async def enrich_for_tenant(
     """
     Classify intent (if needed), load dynamic data when appropriate, apply tenant hooks.
     """
-    resolved_result = intent_result or classify_intent(user_text, tenant)
+    if intent_result is None:
+        raise ValueError("intent_result is required — classify before enrich_for_tenant")
+    resolved_result = intent_result
     resolved = intent or resolved_result.intent
 
     if resolved_result.business_type in _RETAIL_TYPES:
