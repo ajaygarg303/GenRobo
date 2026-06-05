@@ -44,7 +44,9 @@ export async function fetchTenant(slug: string): Promise<TenantConfig> {
   return r.json() as Promise<TenantConfig>;
 }
 
-export async function createSession(tenantSlug: string): Promise<{ id: string; tenant_slug: string }> {
+export async function createSession(
+  tenantSlug: string,
+): Promise<{ id: string; tenant_slug: string; opening_message: string | null }> {
   const r = await fetch(apiUrl("/api/sessions"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -52,7 +54,7 @@ export async function createSession(tenantSlug: string): Promise<{ id: string; t
   });
   if (r.status === 429) throw new Error("session_quota");
   if (!r.ok) throw new Error("Could not start chat");
-  return r.json() as Promise<{ id: string; tenant_slug: string }>;
+  return r.json() as Promise<{ id: string; tenant_slug: string; opening_message: string | null }>;
 }
 
 export async function sendMessage(

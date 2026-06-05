@@ -28,7 +28,10 @@ def _intent_hint(intent: ChatIntent) -> str:
         ChatIntent.STOCK_PRICE: "The customer is asking about product availability or price. Use structured lookup data when provided.",
         ChatIntent.MENU_ORDER: "The customer is asking about menu items or order totals. Use the static menu knowledge. Show itemised prices and a total.",
         ChatIntent.HOURS_LOCATION: "The customer is asking about opening hours or location.",
-        ChatIntent.CONTACT: "The customer wants contact details or to speak with the business.",
+        ChatIntent.CONTACT: (
+            "Use conversation context. If they are giving their own name/phone/email after your opening message, "
+            "thank them and continue helping. Only share the business phone/email when they ask how to reach staff."
+        ),
         ChatIntent.GENERAL: "Answer helpfully using the static business knowledge. If unsure, say you will pass the question to the team.",
     }
     return hints.get(intent, hints[ChatIntent.GENERAL])
@@ -44,6 +47,11 @@ async def _build_system_prompt(
     parts = [
         f"You are the website chat assistant for {tenant.display_name}.",
         "Answer using the business information below. If something is not covered, say you will pass the question to the team — do not invent prices, policies, or medical/legal advice.",
+        (
+            "Your opening message is the first turn in the conversation history. Read it carefully: "
+            "if it asked for name or contact details and the customer replies with them, thank them briefly "
+            "and invite their question — do not redirect them to call the business unless they ask how to reach staff."
+        ),
         f"Business type: {business_type}. Detected intent: {intent.value}. {_intent_hint(intent)}",
         f"Business hours and notes: {tenant.business_hours_text or 'Not specified.'}",
         f"Public contact: phone={tenant.contact_phone or 'n/a'}, email={tenant.contact_email_public or 'n/a'}.",
@@ -67,7 +75,7 @@ async def generate_reply(
 ) -> str:
     intent_result = classify_intent(user_text, tenant)
 
-    fast = try_fast_reply(tenant, user_text, intent_result)
+    fast = try_fast_reply(tenant, user_text, intent_result, conversation_started=bool(history))
     if fast is not None:
         return fast
 

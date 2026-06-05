@@ -62,10 +62,15 @@ async def create_session(
     chat = ChatSession(tenant_id=tenant.id)
     session.add(chat)
     await session.flush()
+
+    opening = (tenant.welcome_message or "").strip()
+    if opening:
+        session.add(ChatMessage(session_id=chat.id, role="assistant", content=opening))
+
     await increment_session_usage(session, tenant)
     await session.commit()
     await session.refresh(chat)
-    return SessionOut(id=chat.id, tenant_slug=tenant.slug)
+    return SessionOut(id=chat.id, tenant_slug=tenant.slug, opening_message=opening or None)
 
 
 @router.post("/{session_id}/message", response_model=ChatTurnResponse)

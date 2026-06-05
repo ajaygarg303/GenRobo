@@ -92,6 +92,9 @@ export default function ChatPage() {
         const s = await createSession(slug);
         if (cancelled) return;
         setSessionId(s.id);
+        if (s.opening_message?.trim()) {
+          setMessages([{ role: "assistant", content: s.opening_message.trim() }]);
+        }
       } catch (e) {
         if (e instanceof Error && e.message === "session_quota") {
           setErr("This business has reached its monthly chat limit. Please try again later.");
@@ -223,9 +226,6 @@ export default function ChatPage() {
         </section>
 
         <div className="bc-messages" ref={listRef}>
-          {cfg.welcome_message.trim() && (
-            <div className="bc-msg bc-msg-assistant">{cfg.welcome_message}</div>
-          )}
           {messages.map((m, i) => (
             <div key={i} className={`bc-msg bc-msg-${m.role}`}>
               {m.content}

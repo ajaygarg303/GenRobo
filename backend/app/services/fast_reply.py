@@ -23,7 +23,7 @@ _BYE_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Hours/contact fast path only for short, focused questions
+# Hours fast path only for short, focused questions
 _MAX_FAST_FAQ_LEN = 140
 
 
@@ -36,16 +36,22 @@ def _winner_clear(result: IntentResult, intent: ChatIntent) -> bool:
         return False
     if result.confidence < 2:
         return False
-    # Another intent nearly tied → use LLM
     others = [s for i, s in result.scores.items() if i != intent]
     if others and max(others) >= result.confidence - 1:
         return False
     return True
 
 
-def try_fast_reply(tenant: Tenant, user_text: str, result: IntentResult) -> str | None:
+def try_fast_reply(
+    tenant: Tenant,
+    user_text: str,
+    result: IntentResult,
+    *,
+    conversation_started: bool = False,
+) -> str | None:
     """
     Return an immediate reply string, or None to continue with LLM + enrichment.
+    Contact and lead replies are left to the LLM so opening-message context is used.
     """
     text = (user_text or "").strip()
     if not text:
@@ -54,6 +60,8 @@ def try_fast_reply(tenant: Tenant, user_text: str, result: IntentResult) -> str 
     name = tenant.display_name
 
     if _GREETING_RE.match(text):
+        if conversation_started:
+            return f"Hello! How can we help you at {name} today?"
         welcome = (tenant.welcome_message or "").strip()
         if welcome:
             return welcome
@@ -76,15 +84,5 @@ def try_fast_reply(tenant: Tenant, user_text: str, result: IntentResult) -> str 
         if hours:
             return f"Our opening hours: {hours}\n\nFor the full address and more details, check our website or ask another question."
         return f"Please contact {name} for our current opening hours and location."
-
-    if _winner_clear(result, ChatIntent.CONTACT):
-        parts: list[str] = [f"You can reach {name}:"]
-        if tenant.contact_phone:
-            parts.append(f"Phone: {tenant.contact_phone}")
-        if tenant.contact_email_public:
-            parts.append(f"Email: {tenant.contact_email_public}")
-        if len(parts) == 1:
-            return "Please use the contact details on our website — we don't have phone/email listed in chat yet."
-        return "\n".join(parts)
 
     return None
