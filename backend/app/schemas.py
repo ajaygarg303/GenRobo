@@ -26,6 +26,7 @@ class SessionCreate(BaseModel):
 class SessionOut(BaseModel):
     id: UUID
     tenant_slug: str
+    opening_message: str | None = None
 
 
 class MessageIn(BaseModel):
