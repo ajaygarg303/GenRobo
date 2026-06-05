@@ -185,7 +185,7 @@ export default function ChatPage() {
     );
   }
 
-  if (!cfg || !sessionId) {
+  if (!cfg || (!sessionId && !chatClosed)) {
     return (
       <div className="bc-shell" style={vars}>
         <div className="bc-card">

@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 
 from app.models import Tenant
-from app.services.intent import ChatIntent, IntentResult
 
 _GREETING_RE = re.compile(
     r"^(\s*)(hi|hello|hey|hiya|howdy|good\s+(morning|afternoon|evening)|"
@@ -23,35 +22,14 @@ _BYE_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Hours fast path only for short, focused questions
-_MAX_FAST_FAQ_LEN = 140
-
-
-def _is_short(text: str) -> bool:
-    return len(text) <= _MAX_FAST_FAQ_LEN
-
-
-def _winner_clear(result: IntentResult, intent: ChatIntent) -> bool:
-    if result.intent != intent:
-        return False
-    if result.confidence < 2:
-        return False
-    others = [s for i, s in result.scores.items() if i != intent]
-    if others and max(others) >= result.confidence - 1:
-        return False
-    return True
-
-
 def try_fast_reply(
     tenant: Tenant,
     user_text: str,
-    result: IntentResult,
     *,
     conversation_started: bool = False,
 ) -> str | None:
     """
-    Return an immediate reply string, or None to continue with LLM + enrichment.
-    Contact and lead replies are left to the LLM so opening-message context is used.
+    Instant replies for pure greetings/thanks/goodbye only — everything else uses the LLM.
     """
     text = (user_text or "").strip()
     if not text:
@@ -75,14 +53,5 @@ def try_fast_reply(
 
     if _BYE_RE.match(text):
         return f"Thanks for chatting with {name}. Use **End chat** when you're finished so we can save your conversation."
-
-    if not _is_short(text):
-        return None
-
-    if _winner_clear(result, ChatIntent.HOURS_LOCATION):
-        hours = (tenant.business_hours_text or "").strip()
-        if hours:
-            return f"Our opening hours: {hours}\n\nFor the full address and more details, check our website or ask another question."
-        return f"Please contact {name} for our current opening hours and location."
 
     return None

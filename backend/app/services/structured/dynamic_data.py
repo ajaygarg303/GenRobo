@@ -12,7 +12,7 @@ from app.services.structured.inventory_csv import (
     search_inventory,
 )
 from app.services.intent import IntentResult
-from app.services.tenant_knowledge import should_load_dynamic_data
+from app.services.tenant_knowledge import resolve_dynamic_data_kind, should_load_dynamic_data
 
 logger = logging.getLogger(__name__)
 

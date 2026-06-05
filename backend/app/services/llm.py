@@ -3,7 +3,7 @@ from openai import AsyncOpenAI
 from app.config import get_settings
 from app.models import ChatMessage, Tenant
 from app.services.fast_reply import try_fast_reply
-from app.services.intent import ChatIntent, classify_intent
+from app.services.intent import ChatIntent, classify_intent_for_message
 from app.services.tenant_customization import enrich_for_tenant
 from app.services.tenant_knowledge import load_static_for_intent
 
@@ -32,7 +32,11 @@ def _intent_hint(intent: ChatIntent) -> str:
             "Use conversation context. If they are giving their own name/phone/email after your opening message, "
             "thank them and continue helping. Only share the business phone/email when they ask how to reach staff."
         ),
-        ChatIntent.GENERAL: "Answer helpfully using the static business knowledge. If unsure, say you will pass the question to the team.",
+        ChatIntent.GENERAL: (
+            "Answer helpfully using the static business knowledge — including services the business offers "
+            "(repairs, delivery, appointments). Confirm yes/no from the KB before suggesting the customer call. "
+            "Only defer to the team when the KB truly lacks the answer."
+        ),
     }
     return hints.get(intent, hints[ChatIntent.GENERAL])
 
@@ -52,7 +56,7 @@ async def _build_system_prompt(
             "if it asked for name or contact details and the customer replies with them, thank them briefly "
             "and invite their question — do not redirect them to call the business unless they ask how to reach staff."
         ),
-        f"Business type: {business_type}. Detected intent: {intent.value}. {_intent_hint(intent)}",
+        f"Business type: {business_type}. Routing hint: {intent.value} — {_intent_hint(intent)}",
         f"Business hours and notes: {tenant.business_hours_text or 'Not specified.'}",
         f"Public contact: phone={tenant.contact_phone or 'n/a'}, email={tenant.contact_email_public or 'n/a'}.",
         "--- Static knowledge (FAQ / menu — policies, services, how to order) ---",
@@ -73,9 +77,9 @@ async def generate_reply(
     history: list[ChatMessage],
     user_text: str,
 ) -> str:
-    intent_result = classify_intent(user_text, tenant)
+    intent_result = await classify_intent_for_message(tenant, user_text, history)
 
-    fast = try_fast_reply(tenant, user_text, intent_result, conversation_started=bool(history))
+    fast = try_fast_reply(tenant, user_text, conversation_started=bool(history))
     if fast is not None:
         return fast
 

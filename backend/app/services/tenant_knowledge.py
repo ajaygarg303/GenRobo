@@ -89,8 +89,7 @@ def should_load_dynamic_data(
     user_text: str = "",
 ) -> bool:
     """
-    Dynamic file is loaded only when intent is confident enough and tenant has dynamic config.
-    Unclear/general questions use static FAQ + LLM only.
+    Dynamic file is loaded when the classifier says so (LLM) or keyword fallback matches.
     """
     kind = resolve_dynamic_data_kind(tenant)
     if kind == "none":
@@ -98,6 +97,11 @@ def should_load_dynamic_data(
     key = resolve_dynamic_data_s3_key(tenant)
     if not key:
         return False
+
+    from app.services.intent_llm import LLM_CONFIDENCE
+
+    if intent_result.confidence >= LLM_CONFIDENCE:
+        return intent_result.load_dynamic_data
 
     profile = get_profile(intent_result.business_type)
     allowed = DYNAMIC_INTENTS_BY_BUSINESS.get(
@@ -114,13 +118,10 @@ def should_load_dynamic_data(
 
 async def load_static_for_intent(tenant: Tenant, intent: ChatIntent) -> str:
     """
-    Static FAQ/menu KB. Strips embedded CSV blocks when dynamic_data is configured separately.
+    Full static FAQ/menu KB for every message — intent does not trim the knowledge base.
     """
+    del intent  # kept for call-site compatibility
     text = await load_static_knowledge(tenant)
     if resolve_dynamic_data_s3_key(tenant) and resolve_dynamic_data_kind(tenant) != "none":
         text = strip_embedded_data_blocks(text)
-    if intent in (ChatIntent.HOURS_LOCATION, ChatIntent.CONTACT):
-        faq = (tenant.faq_text or "").strip()
-        if faq and len(faq) < len(text):
-            return faq
     return text

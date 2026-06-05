@@ -55,10 +55,15 @@ BASE_KEYWORDS: dict[str, frozenset[str]] = {
     ),
     INTENT_CONTACT: frozenset(
         {
-            "phone",
+            # Avoid bare "phone" — matches "phones", "repair phones", etc.
+            "phone number",
+            "your phone",
+            "contact number",
+            "telephone",
             "call",
             "email",
-            "contact",
+            "contact us",
+            "get in touch",
             "speak to",
             "talk to",
             "human",
@@ -90,6 +95,9 @@ RETAIL_ELECTRONICS = IntentProfile(
         {
             INTENT_STOCK: frozenset(
                 {"gb", "storage", "sku", "iphone", "samsung", "galaxy", "pixel", "refurbished"}
+            ),
+            INTENT_GENERAL: frozenset(
+                {"repair", "repairs", "fix", "fixed", "broken", "warranty", "service"}
             ),
         },
     ),

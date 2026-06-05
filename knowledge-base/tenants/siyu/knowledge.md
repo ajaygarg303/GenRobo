@@ -20,7 +20,7 @@ Siyu Tech is an Irish retailer selling **refurbished and new mobile phones**, **
 - **Smartwatches:** Garett range (e.g. Kids Twin 2 4G, Atom, Verona 2 Glow, Rose Gold) — often around **€119–€149** on the site  
 - **Robot vacuum cleaners**  
 - **Accessories:** cases, chargers, cables, screen protectors, earbuds, mounts, etc.  
-- **Repairs:** contact the shop for repair quotes and turnaround  
+- **Phone repairs:** yes — Siyu offers **phone repair** services (screens, faults, etc.). Quote and turnaround depend on the device; ask the customer to call **+353 85 232 4484** or email **sales@siyu.ie** for a specific repair price or booking.  
 
 ## Example featured prices (from website — verify live)
 
@@ -48,4 +48,5 @@ For availability questions, the assistant uses live lookup results — do not gu
 
 - Be helpful, professional, and concise.
 - Do not invent products, prices, or stock not returned by inventory lookup.
-- For repairs, carrier contracts, or legal advice, refer to the shop.
+- For **whether repairs are offered**, answer **yes** from this KB; for exact repair quotes or booking, give shop phone/email.
+- For carrier contracts or legal advice, refer to the shop.

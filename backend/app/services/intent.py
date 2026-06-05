@@ -7,13 +7,13 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 
-from app.models import Tenant
+from app.models import ChatMessage, Tenant
 from app.services.intent_profiles import get_profile, resolve_business_type
 
 logger = logging.getLogger(__name__)
 
 # Re-export for other modules
-__all__ = ["ChatIntent", "IntentResult", "classify_intent"]
+__all__ = ["ChatIntent", "IntentResult", "classify_intent", "classify_intent_for_message"]
 
 
 class ChatIntent(str, Enum):
@@ -30,6 +30,7 @@ class IntentResult:
     confidence: int
     scores: dict[ChatIntent, int]
     business_type: str
+    load_dynamic_data: bool = False
 
 
 def _contains_any(text: str, keywords: frozenset[str]) -> bool:
@@ -65,10 +66,29 @@ def _parse_tenant_keyword_overrides(tenant: Tenant) -> dict[ChatIntent, frozense
     return {k: frozenset(v) for k, v in extra.items() if v}
 
 
+async def classify_intent_for_message(
+    tenant: Tenant,
+    user_text: str,
+    history: list[ChatMessage],
+) -> IntentResult:
+    """Prefer LLM classification with conversation context; fall back to keywords in mock/offline mode."""
+    from app.services.intent_llm import classify_intent_llm
+
+    llm_result = await classify_intent_llm(tenant, user_text, history)
+    if llm_result is not None:
+        return llm_result
+    return classify_intent_keywords(user_text, tenant)
+
+
 def classify_intent(user_text: str, tenant: Tenant) -> IntentResult:
+    """Keyword fallback (sync). Used when LLM path is not available."""
+    return classify_intent_keywords(user_text, tenant)
+
+
+def classify_intent_keywords(user_text: str, tenant: Tenant) -> IntentResult:
     """
     Score message against template keywords + tenant overrides.
-    Highest score wins; ties lean to GENERAL.
+    Highest score wins; ties lean to GENERAL. Fallback only — prefer classify_intent_for_message.
     """
     text = (user_text or "").lower().strip()
     business_type = resolve_business_type(
@@ -98,6 +118,10 @@ def classify_intent(user_text: str, tenant: Tenant) -> IntentResult:
     if tenant.slug == "india-gate":
         if any(w in text for w in ("chicken", "lamb", "paneer", "prawn", "tikka", "korma")):
             scores[ChatIntent.MENU_ORDER] += 2
+
+    # Service/repair questions are not "how do I contact you?"
+    if any(w in text for w in ("repair", "repairs", "fix", "fixed", "broken", "cracked", "warranty")):
+        scores[ChatIntent.GENERAL] += 2
 
     best = max(scores, key=lambda k: scores[k])
     confidence = scores[best]
