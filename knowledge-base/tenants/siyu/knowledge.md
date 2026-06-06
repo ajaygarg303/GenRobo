@@ -44,6 +44,13 @@ Website shows filters by **brand, colour, category, type, network**. Many iPhone
 Stock and prices are loaded from the separate inventory file (`inventory.csv` on S3).
 For availability questions, the assistant uses live lookup results — do not guess stock or price.
 
+## Product photos (thumbnails in chat)
+
+- Optional column **`image_url`** on each `inventory.csv` row (HTTPS URL to a thumbnail on S3 or CloudFront).
+- Suggested S3 path: `tenants/siyu/images/{sku}.jpg` (public read or CloudFront).
+- When the customer asks for a photo/picture of a product, include the matching **image_url** on its own line in the reply; the chat UI renders it as a clickable thumbnail.
+- Do not invent image URLs — only use `image_url` from inventory lookup results.
+
 ## Assistant rules
 
 - Be helpful, professional, and concise.

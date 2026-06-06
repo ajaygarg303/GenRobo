@@ -9,6 +9,7 @@ import {
   type ChatSettings,
   type TenantConfig,
 } from "@/api";
+import MessageContent from "@/MessageContent";
 import { resolveTenantSlug } from "@/tenantSlug";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -228,7 +229,7 @@ export default function ChatPage() {
         <div className="bc-messages" ref={listRef}>
           {messages.map((m, i) => (
             <div key={i} className={`bc-msg bc-msg-${m.role}`}>
-              {m.content}
+              <MessageContent content={m.content} />
             </div>
           ))}
         </div>

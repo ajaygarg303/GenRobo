@@ -110,9 +110,14 @@ def should_load_dynamic_data(
     )
     if intent_result.intent in allowed and intent_result.confidence >= 2:
         return True
-    # Retail: still load stock file when message clearly mentions products
-    if profile.business_type in ("retail_electronics", "retail") and _looks_like_product_query(user_text):
-        return True
+    # Retail: load stock file for product or photo questions (keyword fallback only)
+    if profile.business_type in ("retail_electronics", "retail"):
+        t = (user_text or "").lower()
+        wants_photo = any(w in t for w in ("photo", "picture", "pic", "image"))
+        if wants_photo and _looks_like_product_query(user_text):
+            return True
+        if _looks_like_product_query(user_text):
+            return True
     return False
 
 

@@ -108,6 +108,9 @@ def search_inventory(
         blob = _row_search_blob(row)
         row_tokens = _tokens(blob)
         overlap = len(q_tokens & row_tokens)
+        sku = _norm(row.get("sku", ""))
+        if sku and sku.lower() in _norm(query).lower():
+            overlap += 10
         if overlap == 0:
             continue
         try:
@@ -128,23 +131,35 @@ def format_inventory_matches(rows: list[dict[str, str]]) -> str:
     if not rows:
         return "No matching inventory rows found for this query."
 
+    has_images = any((row.get("image_url") or "").strip() for row in rows)
+    header = "sku | brand | product_name | color | storage_gb | condition | stock_qty | price_eur"
+    if has_images:
+        header += " | image_url"
     lines = [
         "Matching inventory (authoritative — use stock_qty and price_eur exactly):",
-        "sku | brand | product_name | color | storage_gb | condition | stock_qty | price_eur",
+        header,
     ]
-    for row in rows:
+    if has_images:
         lines.append(
-            " | ".join(
-                [
-                    row.get("sku", ""),
-                    row.get("brand", ""),
-                    row.get("product_name", ""),
-                    row.get("color", ""),
-                    row.get("storage_gb", ""),
-                    row.get("condition", ""),
-                    row.get("stock_qty", ""),
-                    row.get("price_eur", ""),
-                ]
-            )
+            "Rows with image_url have a product photo. The assistant reply will include those HTTPS URLs "
+            "as thumbnails when relevant."
         )
+    for row in rows:
+        cols = [
+            row.get("sku", ""),
+            row.get("brand", ""),
+            row.get("product_name", ""),
+            row.get("color", ""),
+            row.get("storage_gb", ""),
+            row.get("condition", ""),
+            row.get("stock_qty", ""),
+            row.get("price_eur", ""),
+        ]
+        if has_images:
+            cols.append((row.get("image_url") or "").strip())
+        lines.append(" | ".join(cols))
+        img = (row.get("image_url") or "").strip()
+        sku = (row.get("sku") or "").strip()
+        if img.lower().startswith(("http://", "https://")) and sku:
+            lines.append(f"PHOTO {sku}: {img}")
     return "\n".join(lines)
