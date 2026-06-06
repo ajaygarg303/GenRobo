@@ -128,23 +128,31 @@ def format_inventory_matches(rows: list[dict[str, str]]) -> str:
     if not rows:
         return "No matching inventory rows found for this query."
 
+    has_images = any((row.get("image_url") or "").strip() for row in rows)
+    header = "sku | brand | product_name | color | storage_gb | condition | stock_qty | price_eur"
+    if has_images:
+        header += " | image_url"
     lines = [
         "Matching inventory (authoritative — use stock_qty and price_eur exactly):",
-        "sku | brand | product_name | color | storage_gb | condition | stock_qty | price_eur",
+        header,
     ]
-    for row in rows:
+    if has_images:
         lines.append(
-            " | ".join(
-                [
-                    row.get("sku", ""),
-                    row.get("brand", ""),
-                    row.get("product_name", ""),
-                    row.get("color", ""),
-                    row.get("storage_gb", ""),
-                    row.get("condition", ""),
-                    row.get("stock_qty", ""),
-                    row.get("price_eur", ""),
-                ]
-            )
+            "If the customer asks for a photo/picture, include the matching image_url on its own line "
+            "(the chat UI renders it as a thumbnail)."
         )
+    for row in rows:
+        cols = [
+            row.get("sku", ""),
+            row.get("brand", ""),
+            row.get("product_name", ""),
+            row.get("color", ""),
+            row.get("storage_gb", ""),
+            row.get("condition", ""),
+            row.get("stock_qty", ""),
+            row.get("price_eur", ""),
+        ]
+        if has_images:
+            cols.append((row.get("image_url") or "").strip())
+        lines.append(" | ".join(cols))
     return "\n".join(lines)

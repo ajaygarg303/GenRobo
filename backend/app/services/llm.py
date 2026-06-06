@@ -25,7 +25,11 @@ def _client() -> AsyncOpenAI | None:
 
 def _intent_hint(intent: ChatIntent) -> str:
     hints = {
-        ChatIntent.STOCK_PRICE: "The customer is asking about product availability or price. Use structured lookup data when provided.",
+        ChatIntent.STOCK_PRICE: (
+            "The customer is asking about product availability, price, or photos. "
+            "Use structured lookup data when provided. If image_url is present and they want a picture, "
+            "put that HTTPS URL on its own line in your reply (the UI shows thumbnails)."
+        ),
         ChatIntent.MENU_ORDER: "The customer is asking about menu items or order totals. Use the static menu knowledge. Show itemised prices and a total.",
         ChatIntent.HOURS_LOCATION: "The customer is asking about opening hours or location.",
         ChatIntent.CONTACT: (
@@ -51,6 +55,7 @@ async def _build_system_prompt(
     parts = [
         f"You are the website chat assistant for {tenant.display_name}.",
         "Answer using the business information below. If something is not covered, say you will pass the question to the team — do not invent prices, policies, or medical/legal advice.",
+        "Product image URLs from lookup data may be shown as thumbnails — only use image_url values from dynamic data, never invent URLs.",
         (
             "Your opening message is the first turn in the conversation history. Read it carefully: "
             "if it asked for name or contact details and the customer replies with them, thank them briefly "
