@@ -1,10 +1,13 @@
 import { useMemo } from "react";
 
-const IMAGE_URL_RE =
-  /https?:\/\/[^\s<>"']+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s<>"')]*)?/gi;
 const MD_IMAGE_RE = /!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/gi;
+const IMAGE_EXT_RE =
+  /https?:\/\/[^\s<>"']+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s<>"')]*)?/gi;
+const S3_IMAGE_RE =
+  /https?:\/\/[^\s<>"']+\.amazonaws\.com\/[^\s<>"')]+/gi;
+const HTTPS_RE = /https?:\/\/[^\s<>"']+/gi;
 
-function isImageUrl(url: string): boolean {
+function isSafeUrl(url: string): boolean {
   try {
     const u = new URL(url);
     return u.protocol === "http:" || u.protocol === "https:";
@@ -13,40 +16,82 @@ function isImageUrl(url: string): boolean {
   }
 }
 
-function parseMessage(content: string): { text: string; images: { url: string; alt: string }[] } {
+function isLikelyImageUrl(url: string): boolean {
+  if (!isSafeUrl(url)) return false;
+  const low = url.toLowerCase().split("?")[0];
+  if (/\.(jpg|jpeg|png|webp|gif)$/.test(low)) return true;
+  if (low.includes(".amazonaws.com/") && (low.includes("/images/") || low.includes("/image/"))) {
+    return true;
+  }
+  return false;
+}
+
+function normalizeContent(raw: string): string {
+  return raw
+    .replace(/[`']/g, "")
+    .replace(/\r\n/g, "\n");
+}
+
+function collectImages(content: string): { text: string; images: { url: string; alt: string }[] } {
   const images: { url: string; alt: string }[] = [];
   const seen = new Set<string>();
 
-  const addImage = (url: string, alt: string) => {
-    if (!isImageUrl(url) || seen.has(url)) return;
-    seen.add(url);
-    images.push({ url, alt });
+  const add = (url: string, alt: string) => {
+    const u = url.replace(/[.,;:!?)]+$/, "");
+    if (!isLikelyImageUrl(u) || seen.has(u)) return;
+    seen.add(u);
+    images.push({ url: u, alt });
   };
 
   let text = content.replace(MD_IMAGE_RE, (_, alt: string, url: string) => {
-    addImage(url, alt || "Product image");
+    add(url, alt || "Product image");
     return "";
   });
 
-  for (const m of text.matchAll(IMAGE_URL_RE)) {
-    addImage(m[0], "Image");
+  for (const re of [IMAGE_EXT_RE, S3_IMAGE_RE]) {
+    for (const m of text.matchAll(re)) {
+      add(m[0], "Product image");
+    }
   }
 
-  text = text
-    .replace(IMAGE_URL_RE, "")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  for (const img of images) {
+    text = text.split(img.url).join("");
+  }
+  text = text.replace(/\n{3,}/g, "\n\n").trim();
 
   return { text, images };
 }
 
+function renderTextWithLinks(text: string) {
+  const nodes: (string | JSX.Element)[] = [];
+  let last = 0;
+  let linkIdx = 0;
+  for (const m of text.matchAll(HTTPS_RE)) {
+    const idx = m.index ?? 0;
+    if (idx > last) nodes.push(text.slice(last, idx));
+    const url = m[0].replace(/[.,;:!?)]+$/, "");
+    if (isSafeUrl(url)) {
+      nodes.push(
+        <a key={`${url}-${linkIdx++}`} href={url} target="_blank" rel="noopener noreferrer">
+          {url}
+        </a>,
+      );
+    } else {
+      nodes.push(url);
+    }
+    last = idx + m[0].length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes.length ? nodes : text;
+}
+
 export default function MessageContent({ content }: { content: string }) {
-  const { text, images } = useMemo(() => parseMessage(content), [content]);
+  const normalized = useMemo(() => normalizeContent(content), [content]);
+  const { text, images } = useMemo(() => collectImages(normalized), [normalized]);
 
   return (
     <div className="bc-msg-body">
-      {text ? <span>{text}</span> : null}
+      {text ? <span>{renderTextWithLinks(text)}</span> : null}
       {images.length > 0 ? (
         <div className="bc-msg-images">
           {images.map((img) => (

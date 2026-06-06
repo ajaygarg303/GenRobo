@@ -108,6 +108,9 @@ def search_inventory(
         blob = _row_search_blob(row)
         row_tokens = _tokens(blob)
         overlap = len(q_tokens & row_tokens)
+        sku = _norm(row.get("sku", ""))
+        if sku and sku.lower() in _norm(query).lower():
+            overlap += 10
         if overlap == 0:
             continue
         try:
@@ -138,8 +141,8 @@ def format_inventory_matches(rows: list[dict[str, str]]) -> str:
     ]
     if has_images:
         lines.append(
-            "If the customer asks for a photo/picture, include the matching image_url on its own line "
-            "(the chat UI renders it as a thumbnail)."
+            "Rows with image_url have a product photo. The assistant reply will include those HTTPS URLs "
+            "as thumbnails when relevant."
         )
     for row in rows:
         cols = [
@@ -155,4 +158,8 @@ def format_inventory_matches(rows: list[dict[str, str]]) -> str:
         if has_images:
             cols.append((row.get("image_url") or "").strip())
         lines.append(" | ".join(cols))
+        img = (row.get("image_url") or "").strip()
+        sku = (row.get("sku") or "").strip()
+        if img.lower().startswith(("http://", "https://")) and sku:
+            lines.append(f"PHOTO {sku}: {img}")
     return "\n".join(lines)

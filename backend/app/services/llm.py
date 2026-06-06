@@ -5,6 +5,7 @@ from app.models import ChatMessage, Tenant
 from app.services.fast_reply import try_fast_reply
 from app.services.intent import ChatIntent, classify_intent_for_message
 from app.services.tenant_customization import enrich_for_tenant
+from app.services.product_images import append_inventory_photos
 from app.services.tenant_knowledge import load_static_for_intent
 
 _openai_client: AsyncOpenAI | None = None
@@ -27,8 +28,7 @@ def _intent_hint(intent: ChatIntent) -> str:
     hints = {
         ChatIntent.STOCK_PRICE: (
             "The customer is asking about product availability, price, or photos. "
-            "Use structured lookup data when provided. If image_url is present and they want a picture, "
-            "put that HTTPS URL on its own line in your reply (the UI shows thumbnails)."
+            "Use structured lookup data when provided. Mention PHOTO lines when listing a SKU that has one."
         ),
         ChatIntent.MENU_ORDER: "The customer is asking about menu items or order totals. Use the static menu knowledge. Show itemised prices and a total.",
         ChatIntent.HOURS_LOCATION: "The customer is asking about opening hours or location.",
@@ -125,4 +125,5 @@ async def generate_reply(
         max_tokens=max_tokens,
     )
     choice = resp.choices[0].message.content
-    return (choice or "").strip() or "Sorry, I could not generate a reply."
+    text = (choice or "").strip() or "Sorry, I could not generate a reply."
+    return append_inventory_photos(user_text, enrichment, text)
