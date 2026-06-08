@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import type { SessionLead } from "@/api";
 
 const DEMO_LEAD_KEY = "mrc_demo_lead";
 
@@ -26,6 +27,14 @@ export function loadDemoLead(): DemoLead | null {
 
 export function clearDemoLead() {
   sessionStorage.removeItem(DEMO_LEAD_KEY);
+}
+
+export function demoLeadToSessionLead(lead: DemoLead): SessionLead {
+  return {
+    visitor_email: lead.email,
+    visitor_phone: lead.phone,
+    visitor_name: lead.name || undefined,
+  };
 }
 
 export default function TryDemoPage() {

@@ -10,7 +10,7 @@ import {
   type TenantConfig,
 } from "@/api";
 import MessageContent from "@/MessageContent";
-import { loadDemoLead } from "@/pages/TryDemoPage";
+import { demoLeadToSessionLead, loadDemoLead } from "@/pages/TryDemoPage";
 import { resolveTenantSlug } from "@/tenantSlug";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -111,8 +111,11 @@ export default function ChatPage({ forcedSlug, demoMode = false }: ChatPageProps
         if (cancelled) return;
         setCfg(t);
         setChatSettings(settings);
-        const lead = demoMode ? loadDemoLead() : null;
-        const s = await createSession(slug, lead ?? undefined);
+        const demoLead = demoMode ? loadDemoLead() : null;
+        const s = await createSession(
+          slug,
+          demoLead ? demoLeadToSessionLead(demoLead) : undefined,
+        );
         if (cancelled) return;
         setSessionId(s.id);
         if (s.opening_message?.trim()) {
