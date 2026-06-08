@@ -89,6 +89,9 @@ class ChatSession(Base):
     end_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     summary_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     lead_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    visitor_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    visitor_phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    visitor_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     tenant: Mapped["Tenant"] = relationship(back_populates="sessions")
     messages: Mapped[list["ChatMessage"]] = relationship(

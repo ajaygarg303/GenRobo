@@ -32,6 +32,12 @@ async def close_chat_session(
     messages = list(result.scalars().all())
 
     summary, lead = await generate_session_summary(tenant, messages)
+    if getattr(chat, "visitor_email", None) and not lead.get("contact_email"):
+        lead["contact_email"] = chat.visitor_email
+    if getattr(chat, "visitor_phone", None) and not lead.get("contact_phone"):
+        lead["contact_phone"] = chat.visitor_phone
+    if getattr(chat, "visitor_name", None) and not lead.get("contact_name"):
+        lead["contact_name"] = chat.visitor_name
     chat.summary_text = summary
     chat.lead_json = json.dumps(lead, ensure_ascii=False)
     await session.commit()

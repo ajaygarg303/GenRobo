@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   createSession,
   endSession,
@@ -10,13 +10,26 @@ import {
   type TenantConfig,
 } from "@/api";
 import MessageContent from "@/MessageContent";
+import { loadDemoLead } from "@/pages/TryDemoPage";
 import { resolveTenantSlug } from "@/tenantSlug";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-export default function ChatPage() {
+const DEMO_PROMPTS = [
+  "What are your hours?",
+  "Do you deliver?",
+  "How much is chicken tikka masala?",
+];
+
+type ChatPageProps = {
+  forcedSlug?: string;
+  demoMode?: boolean;
+};
+
+export default function ChatPage({ forcedSlug, demoMode = false }: ChatPageProps) {
   const { slug: pathSlug } = useParams();
-  const slug = resolveTenantSlug(pathSlug);
+  const navigate = useNavigate();
+  const slug = forcedSlug ?? resolveTenantSlug(pathSlug);
   const [cfg, setCfg] = useState<TenantConfig | null>(null);
   const [chatSettings, setChatSettings] = useState<ChatSettings | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -82,7 +95,15 @@ export default function ChatPage() {
   }, [scheduleIdleTimers]);
 
   useEffect(() => {
+    if (demoMode && !loadDemoLead()) {
+      navigate("/try", { replace: true });
+      return;
+    }
+  }, [demoMode, navigate]);
+
+  useEffect(() => {
     if (!slug) return;
+    if (demoMode && !loadDemoLead()) return;
     let cancelled = false;
     (async () => {
       try {
@@ -90,7 +111,8 @@ export default function ChatPage() {
         if (cancelled) return;
         setCfg(t);
         setChatSettings(settings);
-        const s = await createSession(slug);
+        const lead = demoMode ? loadDemoLead() : null;
+        const s = await createSession(slug, lead ?? undefined);
         if (cancelled) return;
         setSessionId(s.id);
         if (s.opening_message?.trim()) {
@@ -109,7 +131,7 @@ export default function ChatPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, demoMode]);
 
   useEffect(() => {
     scheduleIdleTimers();
@@ -165,8 +187,9 @@ export default function ChatPage() {
         ...m,
         {
           role: "assistant",
-          content:
-            "Thanks — this chat is closed. The business may follow up using the contact details shown above.",
+          content: demoMode
+            ? "Thanks — this demo chat is closed. Check your email for the transcript. Want this for your business? Visit myrobochat.com."
+            : "Thanks — this chat is closed. The business may follow up using the contact details shown above.",
         },
       ]);
       setSessionId(null);
@@ -199,6 +222,14 @@ export default function ChatPage() {
   return (
     <div className="bc-shell" style={vars}>
       <div className="bc-card">
+        {demoMode ? (
+          <div className="bc-demo-banner">
+            <span>
+              <strong>Demo</strong> — answers come from our sample café knowledge base only.
+            </span>
+            <Link to="/">MyRoboChat</Link>
+          </div>
+        ) : null}
         <header className="bc-header">
           {cfg.logo_url ? (
             <img className="bc-logo" src={cfg.logo_url} alt="" />
@@ -233,6 +264,24 @@ export default function ChatPage() {
             </div>
           ))}
         </div>
+
+        {demoMode && !chatClosed ? (
+          <div className="bc-demo-prompts">
+            {DEMO_PROMPTS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                className="bc-demo-chip"
+                disabled={busy || !sessionId}
+                onClick={() => {
+                  setInput(p);
+                }}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <form className="bc-form" onSubmit={onSend}>
           <input

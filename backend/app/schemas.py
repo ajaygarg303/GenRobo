@@ -21,6 +21,9 @@ class TenantPublicConfig(BaseModel):
 
 class SessionCreate(BaseModel):
     tenant_slug: str = Field(min_length=1, max_length=80)
+    visitor_email: str | None = Field(default=None, max_length=200)
+    visitor_phone: str | None = Field(default=None, max_length=64)
+    visitor_name: str | None = Field(default=None, max_length=120)
 
 
 class SessionOut(BaseModel):
