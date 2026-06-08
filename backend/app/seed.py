@@ -65,30 +65,44 @@ async def seed() -> None:
             demo = Tenant(
                 id=uuid.uuid4(),
                 slug="demo",
-                display_name="Demo Plumbing Co.",
-                timezone="Asia/Kolkata",
+                display_name="Murphy's Corner Café (Demo)",
+                timezone="Europe/Dublin",
                 status="active",
-                plan_id=plans["basic"].id,
-                primary_color="#0369a1",
-                background_color="#f0f9ff",
-                text_color="#0c4a6e",
-                welcome_message="Hi! Ask us about services, rates, or hours.",
-                faq_text=(
-                    "Services: leak repair, drain cleaning, water heater install.\n"
-                    "Rates: $95 service call (waived if work approved). "
-                    "Emergency after 8pm: +$50.\n"
-                    "Warranty: 90 days on labor for repairs we perform."
+                plan_id=plans["advanced"].id,
+                business_type="restaurant",
+                primary_color="#b45309",
+                background_color="#fffbeb",
+                text_color="#1c1917",
+                welcome_message=(
+                    "Welcome to the Murphy's Corner Café demo! Ask about our hours, menu, "
+                    "delivery, or prices — answers come from our sample knowledge base only."
                 ),
-                business_hours_text="Mon–Sat 8am–6pm. Closed Sundays.",
-                contact_phone="+1-555-0100",
-                contact_email_public="hello@demoplumbing.example",
-                transcript_email="owner@example.com",
+                knowledge_s3_key="tenants/demo/knowledge.md",
+                faq_text="",
+                business_hours_text="Mon–Sat 9am–9pm · Sun 10am–6pm",
+                contact_phone="+353 1 555 0100",
+                contact_email_public="hello@murphyscafe.demo",
+                transcript_email="hello@myrobochat.com",
             )
             session.add(demo)
             print("Seeded tenant slug=demo")
         else:
-            if not demo.plan_id:
-                demo.plan_id = plans["basic"].id
+            demo.display_name = "Murphy's Corner Café (Demo)"
+            demo.timezone = "Europe/Dublin"
+            demo.business_type = "restaurant"
+            demo.plan_id = plans["advanced"].id
+            demo.knowledge_s3_key = "tenants/demo/knowledge.md"
+            demo.welcome_message = (
+                "Welcome to the Murphy's Corner Café demo! Ask about our hours, menu, "
+                "delivery, or prices — answers come from our sample knowledge base only."
+            )
+            demo.business_hours_text = "Mon–Sat 9am–9pm · Sun 10am–6pm"
+            demo.contact_phone = "+353 1 555 0100"
+            demo.contact_email_public = "hello@murphyscafe.demo"
+            demo.transcript_email = "hello@myrobochat.com"
+            demo.primary_color = "#b45309"
+            demo.background_color = "#fffbeb"
+            demo.text_color = "#1c1917"
             if not getattr(demo, "status", None) or demo.status == "":
                 demo.status = "active"
 

@@ -59,7 +59,12 @@ async def create_session(
     assert_tenant_chat_available(tenant)
     await assert_session_quota(session, tenant)
 
-    chat = ChatSession(tenant_id=tenant.id)
+    chat = ChatSession(
+        tenant_id=tenant.id,
+        visitor_email=(body.visitor_email or "").strip() or None,
+        visitor_phone=(body.visitor_phone or "").strip() or None,
+        visitor_name=(body.visitor_name or "").strip() or None,
+    )
     session.add(chat)
     await session.flush()
 

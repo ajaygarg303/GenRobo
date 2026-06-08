@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 
-from app.models import Tenant
+from app.models import ChatMessage, Tenant
 from app.services.intent import ChatIntent, IntentResult
 from app.services.intent_profiles import get_profile
 from app.services.knowledge import load_static_knowledge, strip_embedded_data_blocks
@@ -83,10 +83,21 @@ def _looks_like_product_query(text: str) -> bool:
     return any(h in t for h in _PRODUCT_HINTS)
 
 
+def _recent_product_context(history: list[ChatMessage] | None) -> bool:
+    if not history:
+        return False
+    for m in history[-8:]:
+        if m.role == "user" and _looks_like_product_query(m.content):
+            return True
+    return False
+
+
 def should_load_dynamic_data(
     tenant: Tenant,
     intent_result: IntentResult,
     user_text: str = "",
+    *,
+    history: list[ChatMessage] | None = None,
 ) -> bool:
     """
     Dynamic file is loaded when the classifier says so (LLM) or keyword fallback matches.
@@ -98,12 +109,24 @@ def should_load_dynamic_data(
     if not key:
         return False
 
+    from app.services.intent import ChatIntent
     from app.services.intent_llm import LLM_CONFIDENCE
 
-    if intent_result.confidence >= LLM_CONFIDENCE:
-        return intent_result.load_dynamic_data
-
     profile = get_profile(intent_result.business_type)
+    retail = profile.business_type in ("retail_electronics", "retail")
+
+    if intent_result.confidence >= LLM_CONFIDENCE:
+        if intent_result.load_dynamic_data:
+            return True
+        # LLM sometimes skips the stock file for colour/variant follow-ups — override for retail.
+        if retail and (
+            intent_result.intent == ChatIntent.STOCK_PRICE
+            or _looks_like_product_query(user_text)
+            or _recent_product_context(history)
+        ):
+            return True
+        return False
+
     allowed = DYNAMIC_INTENTS_BY_BUSINESS.get(
         profile.business_type,
         frozenset(),

@@ -32,6 +32,28 @@ def _format_lead_block(lead: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def build_visitor_transcript_body(
+    *,
+    messages: list[ChatMessage],
+    summary: str,
+) -> str:
+    lines = [
+        f"{m.role.upper()}: {m.content}"
+        for m in messages
+        if m.role in ("user", "assistant")
+    ]
+    return (
+        "Thanks for trying MyRoboChat!\n\n"
+        "Below is a copy of your demo chat. Answers were generated from our sample "
+        "business knowledge base only.\n\n"
+        f"--- Summary ---\n{summary}\n\n"
+        f"--- Full transcript ---\n"
+        + "\n\n".join(lines)
+        + "\n\n---\n"
+        "Interested in a branded assistant for your business? Reply to this email or visit myrobochat.com.\n"
+    )
+
+
 def build_transcript_body(
     *,
     tenant_display_name: str,
@@ -64,11 +86,12 @@ def _smtp_send_sync(
     to_email: str,
     display_name: str,
     body: str,
+    subject: str | None = None,
 ) -> None:
     """Blocking SMTP send — always run via asyncio.to_thread from async code."""
     timeout = settings.smtp_timeout_seconds
     msg = EmailMessage()
-    msg["Subject"] = f"[{display_name}] Chat lead & transcript"
+    msg["Subject"] = subject or f"[{display_name}] Chat lead & transcript"
     msg["From"] = settings.smtp_from or settings.smtp_user or "noreply@localhost"
     msg["To"] = to_email
     msg.set_content(body)
@@ -89,6 +112,7 @@ async def _background_smtp_send(
     display_name: str,
     body: str,
     session_id: UUID,
+    subject: str | None = None,
 ) -> None:
     try:
         await asyncio.to_thread(
@@ -97,6 +121,7 @@ async def _background_smtp_send(
             to_email=to_email,
             display_name=display_name,
             body=body,
+            subject=subject,
         )
         logger.info("Transcript email sent for session %s to %s", session_id, to_email)
     except Exception as e:
@@ -153,3 +178,17 @@ def schedule_transcript_email(
             session_id=chat.id,
         )
     )
+
+    visitor_email = (getattr(chat, "visitor_email", None) or "").strip()
+    if visitor_email and visitor_email.lower() != to_email.lower():
+        visitor_body = build_visitor_transcript_body(messages=messages, summary=summary_text)
+        asyncio.create_task(
+            _background_smtp_send(
+                settings,
+                to_email=visitor_email,
+                display_name="MyRoboChat Demo",
+                body=visitor_body,
+                session_id=chat.id,
+                subject="Your MyRoboChat demo transcript",
+            )
+        )

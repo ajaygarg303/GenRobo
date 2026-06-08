@@ -44,13 +44,24 @@ export async function fetchTenant(slug: string): Promise<TenantConfig> {
   return r.json() as Promise<TenantConfig>;
 }
 
+export type SessionLead = {
+  visitor_email?: string;
+  visitor_phone?: string;
+  visitor_name?: string;
+};
+
 export async function createSession(
   tenantSlug: string,
+  lead?: SessionLead,
 ): Promise<{ id: string; tenant_slug: string; opening_message: string | null }> {
+  const body: Record<string, string> = { tenant_slug: tenantSlug };
+  if (lead?.visitor_email?.trim()) body.visitor_email = lead.visitor_email.trim();
+  if (lead?.visitor_phone?.trim()) body.visitor_phone = lead.visitor_phone.trim();
+  if (lead?.visitor_name?.trim()) body.visitor_name = lead.visitor_name.trim();
   const r = await fetch(apiUrl("/api/sessions"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tenant_slug: tenantSlug }),
+    body: JSON.stringify(body),
   });
   if (r.status === 429) throw new Error("session_quota");
   if (!r.ok) throw new Error("Could not start chat");

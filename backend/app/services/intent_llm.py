@@ -80,12 +80,13 @@ async def classify_intent_llm(
         "- hours_location: opening hours, address, directions\n"
         "- contact: customer asks how to reach the business, OR shares their own name/phone/email "
         "after being asked in the opening message\n\n"
-        "load_dynamic_data: true ONLY when the latest message needs a live inventory/stock file "
-        f"({'enabled' if has_inventory else 'disabled'} for this business) — including price, "
-        "stock, or product photo/picture requests. "
-        "false for repairs, hours, contact details, or vague questions.\n"
+        "load_dynamic_data: true when the latest message (or recent thread) needs live inventory — "
+        f"({'enabled' if has_inventory else 'disabled'} for this business): price, stock, colour, "
+        "storage, model, SKU, or product photo requests. "
+        "true for follow-ups like 'in pink', '256GB version', 'do you have that in stock'. "
+        "false for repairs, hours, contact details, or non-product chat.\n"
         "Examples: 'do you repair phones' → general, load_dynamic_data false. "
-        "'iPhone 17 256GB price' → stock_price, load_dynamic_data true. "
+        "'Galaxy S25 in pink' → stock_price, load_dynamic_data true. "
         "'show me a photo of the used iPhone 17' → stock_price, load_dynamic_data true."
     )
 

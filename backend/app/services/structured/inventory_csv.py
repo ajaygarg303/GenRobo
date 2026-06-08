@@ -17,14 +17,21 @@ logger = logging.getLogger(__name__)
 _CSV_BLOCK_RE = re.compile(r"```csv\s*\n(.*?)```", re.DOTALL | re.IGNORECASE)
 
 
+def _clean_row(row: dict[str, str]) -> dict[str, str]:
+    return {
+        (k or "").lstrip("\ufeff").strip(): (v or "").strip()
+        for k, v in row.items()
+    }
+
+
 def parse_csv_text(text: str) -> list[dict[str, str]]:
-    text = text.strip()
+    text = text.strip().lstrip("\ufeff")
     if not text:
         return []
     reader = csv.DictReader(io.StringIO(text))
     if not reader.fieldnames:
         return []
-    return [dict(row) for row in reader]
+    return [_clean_row(dict(row)) for row in reader]
 
 
 def _legacy_csv_from_static(tenant: Tenant) -> list[dict[str, str]]:
@@ -77,6 +84,59 @@ def _tokens(text: str) -> set[str]:
     return {t for t in re.findall(r"[a-z0-9]+", _norm(text)) if len(t) >= 2}
 
 
+_MODEL_TOKEN_RE = re.compile(r"^(?:s\d{1,2}|a\d{1,2}|iphone\d*|pixel\d*|poco\d*|redmi\d*)$")
+
+_COLOR_TOKENS = frozenset(
+    {
+        "pink",
+        "blue",
+        "black",
+        "white",
+        "green",
+        "orange",
+        "silver",
+        "gold",
+        "lavender",
+        "sage",
+        "navy",
+        "mint",
+        "icy",
+        "deep",
+        "mist",
+        "cosmic",
+        "red",
+        "yellow",
+        "purple",
+        "grey",
+        "gray",
+    }
+)
+
+
+def build_inventory_search_query(
+    user_text: str,
+    history: list | None = None,
+) -> str:
+    """
+    Build a search string from the latest message plus recent user turns so
+    follow-ups like 'in pink' still match the model discussed earlier.
+    """
+    chunks: list[str] = []
+    if history:
+        for m in history[-8:]:
+            role = getattr(m, "role", None)
+            if role == "user":
+                t = (getattr(m, "content", None) or "").strip()
+                if t:
+                    chunks.append(t)
+    current = (user_text or "").strip()
+    if current:
+        chunks.append(current)
+    if not chunks:
+        return ""
+    return " ".join(chunks[-3:])
+
+
 def _row_search_blob(row: dict[str, str]) -> str:
     parts = [
         row.get("sku", ""),
@@ -103,6 +163,9 @@ def search_inventory(
     if not q_tokens:
         return []
 
+    query_colors = {t for t in q_tokens if t in _COLOR_TOKENS}
+    query_models = {t for t in q_tokens if _MODEL_TOKEN_RE.match(t)}
+
     scored: list[tuple[int, dict[str, str]]] = []
     for row in rows:
         blob = _row_search_blob(row)
@@ -113,14 +176,32 @@ def search_inventory(
             overlap += 10
         if overlap == 0:
             continue
+
         try:
             qty = int(str(row.get("stock_qty", "0")).strip() or "0")
         except ValueError:
             qty = 0
         score = overlap * 10 + (5 if qty > 0 else 0)
+
+        row_color_tokens = _tokens(_norm(row.get("color", "")))
+        if query_colors:
+            if query_colors & row_color_tokens:
+                score += 25
+            elif row_color_tokens:
+                score -= 20
+
+        for model in query_models:
+            if model in row_tokens:
+                score += 15
+            else:
+                score -= 12
+
         for t in q_tokens:
             if t.isdigit() and t in blob:
                 score += 3
+
+        if score <= 0:
+            continue
         scored.append((score, row))
 
     scored.sort(key=lambda x: (-x[0], _row_search_blob(x[1])))
