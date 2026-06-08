@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.models import Tenant
+from app.models import ChatMessage, Tenant
 from app.services.intent import ChatIntent, IntentResult
 from app.services.intent_profiles import get_profile
 from app.services.structured.dynamic_data import enrich_from_dynamic_data
@@ -22,6 +22,7 @@ async def enrich_for_tenant(
     intent: ChatIntent | None,
     knowledge: str,
     intent_result: IntentResult | None = None,
+    history: list[ChatMessage] | None = None,
 ) -> tuple[ChatIntent, str | None]:
     """
     Classify intent (if needed), load dynamic data when appropriate, apply tenant hooks.
@@ -32,7 +33,9 @@ async def enrich_for_tenant(
     resolved = intent or resolved_result.intent
 
     if resolved_result.business_type in _RETAIL_TYPES:
-        block = await enrich_from_dynamic_data(tenant, user_text, resolved, resolved_result)
+        block = await enrich_from_dynamic_data(
+            tenant, user_text, resolved, resolved_result, history=history
+        )
         if block:
             return resolved, block
 

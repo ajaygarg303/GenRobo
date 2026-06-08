@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 
-from app.models import Tenant
+from app.models import ChatMessage, Tenant
 from app.services.intent import ChatIntent
 from app.services.structured.inventory_csv import (
+    build_inventory_search_query,
     format_inventory_matches,
     load_inventory_rows,
     search_inventory,
@@ -22,17 +23,18 @@ async def enrich_from_dynamic_data(
     user_text: str,
     intent: ChatIntent,
     intent_result: IntentResult,
+    history: list[ChatMessage] | None = None,
 ) -> str | None:
     """
     Structured lookup from dynamic_data_s3_key when intent allows.
     Returns text block for system prompt, or None.
     """
-    if not should_load_dynamic_data(tenant, intent_result, user_text):
+    if not should_load_dynamic_data(tenant, intent_result, user_text, history=history):
         return None
 
     kind = resolve_dynamic_data_kind(tenant)
     if kind == "inventory_csv":
-        return await _enrich_inventory_csv(tenant, user_text)
+        return await _enrich_inventory_csv(tenant, user_text, history=history)
     if kind == "appointment_slots":
         logger.info("appointment_slots dynamic kind not implemented yet for %s", tenant.slug)
         return None
@@ -41,7 +43,12 @@ async def enrich_from_dynamic_data(
     return None
 
 
-async def _enrich_inventory_csv(tenant: Tenant, user_text: str) -> str | None:
+async def _enrich_inventory_csv(
+    tenant: Tenant,
+    user_text: str,
+    *,
+    history: list[ChatMessage] | None = None,
+) -> str | None:
     rows = await load_inventory_rows(tenant)
     if not rows:
         from app.services.tenant_knowledge import resolve_dynamic_data_s3_key
@@ -52,7 +59,8 @@ async def _enrich_inventory_csv(tenant: Tenant, user_text: str) -> str | None:
             "Ask the customer to call the shop for availability."
         )
 
-    matches = search_inventory(rows, user_text, limit=8)
+    search_query = build_inventory_search_query(user_text, history)
+    matches = search_inventory(rows, search_query, limit=8)
     if not matches:
         return (
             "STOCK LOOKUP: no matching rows for this query. "

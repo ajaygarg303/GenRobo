@@ -91,7 +91,12 @@ async def generate_reply(
     intent = intent_result.intent
     knowledge = await load_static_for_intent(tenant, intent)
     intent, enrichment = await enrich_for_tenant(
-        tenant, user_text, intent, knowledge, intent_result=intent_result
+        tenant,
+        user_text,
+        intent,
+        knowledge,
+        intent_result=intent_result,
+        history=history,
     )
 
     system = await _build_system_prompt(
